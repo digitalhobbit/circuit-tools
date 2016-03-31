@@ -1,3 +1,12 @@
+# Captures midi from Novation Circuit.
+# Writes a midi file with three tracks:
+#   - Synth 1
+#   - Synth 2
+#   - Drums
+#
+# This can be played as-is in midi players and imported into most DAW software
+# for further editing.
+#
 # TODO:
 # - Determine tempo (e.g. based on initial cock ticks, before capture starts)
 # - Figure out how to write tempo to the file
@@ -18,12 +27,14 @@ CHANNEL_TO_INDEX = {
     CHANNEL_DRUMS: 2
 }
 
+# See here for other options: https://en.wikipedia.org/wiki/General_MIDI#Program_change_events
 PROGRAM_SYNTH1 = 39  # Synth Bass 1
 PROGRAM_SYNTH2 = 1   # Acoustic Grand Piano
 
 # For some reason, Circuit uses drums 60-65, which mainly correspond to bongos and congas.
 # We'll replace these with notes that correspond to the default Circuit drum sounds of
 # kick, snare, open hi-hat, closed hi-hat respectively.
+# See here for other options: https://en.wikipedia.org/wiki/General_MIDI#Percussion
 DRUM_REPLACEMENTS = {
     60: 36,  # Bass Drum 1
     62: 38,  # Snare Drum 1
@@ -36,8 +47,8 @@ with mido.MidiFile(type=1, ticks_per_beat=24) as mid:
         mid.add_track(name="Synth 2"),
         mid.add_track(name="Drums")]
 
-    tracks[CHANNEL_SYNTH1].append(mido.Message('program_change', program=PROGRAM_SYNTH1))  # Synth Bass 1
-    tracks[CHANNEL_SYNTH2].append(mido.Message('program_change', program=PROGRAM_SYNTH2))  # Acoustic Grand Piano
+    tracks[CHANNEL_SYNTH1].append(mido.Message('program_change', program=PROGRAM_SYNTH1))
+    tracks[CHANNEL_SYNTH2].append(mido.Message('program_change', program=PROGRAM_SYNTH2))
 
     with mido.open_input(INPUT) as port:
         clocks = [0, 0, 0]
