@@ -17,6 +17,11 @@ import mido
 # TODO: Make input name configurable
 INPUT = 'Circuit'
 
+# TODO: Make BPM configurable or infer from input
+BPM = 140
+
+TICKS_PER_BEAT = 24  # That's what Circuit uses
+
 CHANNEL_SYNTH1 = 0
 CHANNEL_SYNTH2 = 1
 CHANNEL_DRUMS = 9
@@ -42,13 +47,18 @@ DRUM_REPLACEMENTS = {
     65: 46,  # Open Hi-hat
 }
 
-with mido.MidiFile(type=1, ticks_per_beat=24) as mid:
+with mido.MidiFile(type=1, ticks_per_beat=TICKS_PER_BEAT) as mid:
     tracks = [mid.add_track(name="Synth 1"),
         mid.add_track(name="Synth 2"),
         mid.add_track(name="Drums")]
 
     tracks[CHANNEL_SYNTH1].append(mido.Message('program_change', program=PROGRAM_SYNTH1))
     tracks[CHANNEL_SYNTH2].append(mido.Message('program_change', program=PROGRAM_SYNTH2))
+
+    tempo = mido.bpm2tempo(BPM)
+    meta = mido.MetaMessage('set_tempo', tempo=tempo)
+    for track in tracks:
+        track.append(meta)
 
     with mido.open_input(INPUT) as port:
         clocks = [0, 0, 0]
