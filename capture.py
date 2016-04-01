@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Captures midi from Novation Circuit.
 # Writes a midi file with three tracks:
 #   - Synth 1
@@ -9,7 +11,6 @@
 #
 # TODO:
 # - Determine tempo (e.g. based on initial cock ticks, before capture starts)
-# - Figure out how to write tempo to the file
 # - Add command line parameters for sounds
 
 import mido
@@ -18,7 +19,7 @@ import mido
 INPUT = 'Circuit'
 
 # TODO: Make BPM configurable or infer from input
-BPM = 140
+BPM = 120
 
 TICKS_PER_BEAT = 24  # That's what Circuit uses
 
@@ -46,6 +47,8 @@ DRUM_REPLACEMENTS = {
     64: 42,  # Closed Hi-hat
     65: 46,  # Open Hi-hat
 }
+
+mido.set_backend('mido.backends.rtmidi')
 
 with mido.MidiFile(type=1, ticks_per_beat=TICKS_PER_BEAT) as mid:
     tracks = [mid.add_track(name="Synth 1"),
