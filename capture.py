@@ -14,9 +14,12 @@
 # - Add command line parameters for sounds
 
 import mido
+import os
 
 # TODO: Make input name configurable
 INPUT = 'Circuit'
+OUTPUT_DIR = 'output'
+OUTPUT_FILE = 'capture.mid'
 
 # TODO: Make BPM configurable or infer from input
 BPM = 120
@@ -47,6 +50,9 @@ DRUM_REPLACEMENTS = {
     64: 42,  # Closed Hi-hat
     65: 46,  # Open Hi-hat
 }
+
+if not os.path.exists(OUTPUT_DIR):
+    os.makedirs(OUTPUT_DIR)
 
 mido.set_backend('mido.backends.rtmidi')
 
@@ -93,6 +99,6 @@ with mido.MidiFile(type=1, ticks_per_beat=TICKS_PER_BEAT) as mid:
                     print ("Appending message: %s" % msg)
                     track.append(msg)
 
-    mid.save('capture.mid')
+    mid.save("%s/%s" % (OUTPUT_DIR, OUTPUT_FILE))
 
 print("All done!")
