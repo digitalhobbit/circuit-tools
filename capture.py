@@ -12,6 +12,7 @@
 # TODO:
 # - Determine tempo (e.g. based on initial cock ticks, before capture starts)
 # - Add command line parameters for sounds
+# - Optionally automatically stop after max patterns
 
 import mido
 import os
