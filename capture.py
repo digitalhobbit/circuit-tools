@@ -12,7 +12,7 @@
 # TODO:
 # - Determine tempo (e.g. based on initial cock ticks, before capture starts)
 # - Add command line parameters for sounds
-# - Optionally automatically stop after max patterns
+# - Make max patterns configurable and optional
 
 import mido
 import os
@@ -26,6 +26,8 @@ OUTPUT_FILE = 'capture.mid'
 BPM = 120
 
 TICKS_PER_BEAT = 24  # That's what Circuit uses
+
+MAX_BARS = 8  # TODO: Make this configurable
 
 CHANNEL_SYNTH1 = 0
 CHANNEL_SYNTH2 = 1
@@ -73,6 +75,7 @@ with mido.MidiFile(type=1, ticks_per_beat=TICKS_PER_BEAT) as mid:
     with mido.open_input(INPUT) as port:
         clocks = [0, 0, 0]
         capture = False
+        total_ticks = 0
         print("Push 'Play' to start capture.")
 
         for msg in port:
@@ -86,6 +89,10 @@ with mido.MidiFile(type=1, ticks_per_beat=TICKS_PER_BEAT) as mid:
             elif capture:
                 if msg.type == 'clock':
                     clocks = [c + 1 for c in clocks]
+                    total_ticks += 1
+                    if total_ticks > TICKS_PER_BEAT * 4 * MAX_BARS:
+                        print("End of song. Stopping capture.")
+                        break
                 elif msg.type in ['note_on', 'note_off']:
                     index = CHANNEL_TO_INDEX[msg.channel]
                     track = tracks[index]
@@ -97,7 +104,7 @@ with mido.MidiFile(type=1, ticks_per_beat=TICKS_PER_BEAT) as mid:
                     if msg.channel == CHANNEL_DRUMS:
                         msg.note = DRUM_REPLACEMENTS[msg.note]
 
-                    print ("Appending message: %s" % msg)
+                    print("Appending message: %s" % msg)
                     track.append(msg)
 
     mid.save("%s/%s" % (OUTPUT_DIR, OUTPUT_FILE))
