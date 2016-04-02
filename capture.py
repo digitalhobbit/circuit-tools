@@ -16,13 +16,12 @@ TODO:
 - Make max patterns configurable and optional
 """
 
+import argparse
 import mido
 import os
 
-# TODO: Make input name configurable
 INPUT = 'Circuit'
-OUTPUT_DIR = 'output'
-OUTPUT_FILE = 'capture.mid'
+OUTPUT_FILE = './output/capture.mid'
 
 # TODO: Make BPM configurable or infer from input
 BPM = 120
@@ -57,8 +56,19 @@ DRUM_REPLACEMENTS = {
 }
 
 def main():
-    if not os.path.exists(OUTPUT_DIR):
-        os.makedirs(OUTPUT_DIR)
+    parser = argparse.ArgumentParser(
+        description="Capture MIDI from Novation Circuit and write to .mid file.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--verbose', action='store_true', help="Verbose output")
+    parser.add_argument('-i', '--input', action='store', default=INPUT,
+                        help="MIDI Input")
+    parser.add_argument('-o', '--output', action='store', default=OUTPUT_FILE,
+                        help="Output filename")
+    args = parser.parse_args()
+
+    output_dir = os.path.dirname(args.output)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     mido.set_backend('mido.backends.rtmidi')
 
@@ -75,7 +85,7 @@ def main():
         for track in tracks:
             track.append(meta)
 
-        with mido.open_input(INPUT) as port:
+        with mido.open_input(args.input) as port:
             clocks = [0, 0, 0]
             capture = False
             total_ticks = 0
@@ -110,7 +120,7 @@ def main():
                         print("Appending message: %s" % msg)
                         track.append(msg)
 
-        mid.save("%s/%s" % (OUTPUT_DIR, OUTPUT_FILE))
+        mid.save(args.output)
 
     print("All done!")
 
