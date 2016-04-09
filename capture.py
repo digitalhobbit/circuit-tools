@@ -11,7 +11,10 @@ This can be played as-is in midi players and imported into most DAW software
 for further editing.
 
 TODO:
-- Determine tempo (e.g. based on initial cock ticks, before capture starts)
+- Drum note presets, e.g. Bitwig Drum Machine, Tremor, Battery, Logic Drum Kit, etc.
+- Optionally output multiple MIDI files to cover all drum variations (e.g. perhaps
+  allow multiple format params, default = general midi)
+- Determine tempo (e.g. based on initial clock ticks, before capture starts)
 - Add command line parameters for sounds
 - Make max patterns configurable and optional
 """
@@ -51,7 +54,7 @@ PROGRAM_SYNTH2 = 1   # Acoustic Grand Piano
 DRUM_REPLACEMENTS = {
     60: 36,  # Bass Drum 1
     62: 38,  # Snare Drum 1
-    64: 42,  # Closed Hi-hat
+    64: 42,  # Closed Hi-hat (44 would be Pedal Hi-Hat)
     65: 46,  # Open Hi-hat
 }
 
@@ -86,8 +89,10 @@ def main():
             track.append(meta)
 
         with mido.open_input(args.input) as port:
-            clocks = [0, 0, 0]
             capture = False
+            final_tick = False
+            # Start clocks at -1 to account for Circuit's leading clock message after start
+            clocks = [-1, -1, -1]
             total_ticks = 0
             print("Push 'Play' to start capture.")
 
@@ -103,22 +108,30 @@ def main():
                     if msg.type == 'clock':
                         clocks = [c + 1 for c in clocks]
                         total_ticks += 1
+                        if args.verbose:
+                            print("Ticks: %d" % total_ticks)
                         if total_ticks > TICKS_PER_BEAT * 4 * MAX_BARS:
-                            print("End of song. Stopping capture.")
-                            break
+                            if final_tick:
+                                # We've already processed the final tick => stop
+                                break
+                            else:
+                                final_tick = True
+                                print("End of song. Stopping capture.")
                     elif msg.type in ['note_on', 'note_off']:
-                        index = CHANNEL_TO_INDEX[msg.channel]
-                        track = tracks[index]
+                        # During final tick, only accept note_off messages
+                        if msg.type == 'note_off' or not final_tick:
+                            index = CHANNEL_TO_INDEX[msg.channel]
+                            track = tracks[index]
 
-                        # Set message time to current clock count, then reset this track's clock
-                        msg.time = clocks[index]
-                        clocks[index] = 0
+                            # Set message time to current clock count, then reset this track's clock
+                            msg.time = clocks[index]
+                            clocks[index] = 0
 
-                        if msg.channel == CHANNEL_DRUMS:
-                            msg.note = DRUM_REPLACEMENTS[msg.note]
+                            if msg.channel == CHANNEL_DRUMS:
+                                msg.note = DRUM_REPLACEMENTS[msg.note]
 
-                        print("Appending message: %s" % msg)
-                        track.append(msg)
+                            print("Appending message: %s" % msg)
+                            track.append(msg)
 
         mid.save(args.output)
 
