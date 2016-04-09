@@ -26,6 +26,8 @@ import os
 INPUT = 'Circuit'
 OUTPUT_FILE = './output/capture.mid'
 
+SONG_NAME = "Circuit Import"
+
 # TODO: Make BPM configurable or infer from input
 BPM = 120
 
@@ -76,17 +78,20 @@ def main():
     mido.set_backend('mido.backends.rtmidi')
 
     with mido.MidiFile(type=1, ticks_per_beat=TICKS_PER_BEAT) as mid:
+        # Create tracks
+        tempo_map_track = mid.add_track(name=SONG_NAME)
         tracks = [mid.add_track(name="Synth 1"),
             mid.add_track(name="Synth 2"),
             mid.add_track(name="Drums")]
 
+        # Write tempo to tempo map track
+        tempo = mido.bpm2tempo(BPM)
+        tempo_map_track.append(mido.MetaMessage('set_tempo', tempo=tempo))
+        tempo_map_track.append(mido.MetaMessage('time_signature', numerator=4, denominator=4))
+
+        # Set synth instruments
         tracks[CHANNEL_SYNTH1].append(mido.Message('program_change', program=PROGRAM_SYNTH1))
         tracks[CHANNEL_SYNTH2].append(mido.Message('program_change', program=PROGRAM_SYNTH2))
-
-        tempo = mido.bpm2tempo(BPM)
-        meta = mido.MetaMessage('set_tempo', tempo=tempo)
-        for track in tracks:
-            track.append(meta)
 
         with mido.open_input(args.input) as port:
             capture = False
