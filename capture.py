@@ -14,7 +14,6 @@ TODO:
 - Drum note presets, e.g. Bitwig Drum Machine, Tremor, Battery, Logic Drum Kit, etc.
 - Optionally output multiple MIDI files to cover all drum variations (e.g. perhaps
   allow multiple format params, default = general midi)
-- Determine tempo (e.g. based on initial clock ticks, before capture starts)
 - Add command line parameters for sounds
 - Make max patterns configurable and optional
 """
@@ -22,13 +21,13 @@ TODO:
 import argparse
 import mido
 import os
+import time
 
 INPUT = 'Circuit'
 OUTPUT_FILE = './output/capture.mid'
 
 SONG_NAME = "Circuit Import"
 
-BPM = 120
 TICKS_PER_BEAT = 24  # That's what Circuit uses
 
 MAX_BARS = 8  # TODO: Make this configurable
@@ -67,8 +66,7 @@ def main():
                         help="MIDI Input")
     parser.add_argument('-o', '--output', action='store', default=OUTPUT_FILE,
                         help="Output filename")
-    parser.add_argument('-b', '--bpm', type=int, action='store', default=BPM,
-                        help="BPM")
+    parser.add_argument('-b', '--bpm', type=int, action='store', help="BPM")
     args = parser.parse_args()
 
     output_dir = os.path.dirname(args.output)
@@ -83,11 +81,6 @@ def main():
         tracks = [mid.add_track(name="Synth 1"),
             mid.add_track(name="Synth 2"),
             mid.add_track(name="Drums")]
-
-        # Write tempo to tempo map track
-        tempo = mido.bpm2tempo(args.bpm)
-        tempo_map_track.append(mido.MetaMessage('set_tempo', tempo=tempo))
-        tempo_map_track.append(mido.MetaMessage('time_signature', numerator=4, denominator=4))
 
         # Set synth instruments
         tracks[CHANNEL_SYNTH1].append(mido.Message('program_change', program=PROGRAM_SYNTH1))
@@ -105,6 +98,7 @@ def main():
                 if msg.type == 'start':
                     print("Starting capture.")
                     capture = True
+                    start_time = time.time()
                 elif msg.type == 'stop':
                     print("Stopping capture.")
                     capture = False
@@ -137,6 +131,19 @@ def main():
 
                             print("Appending message: %s" % msg)
                             track.append(msg)
+
+        # Figure out BPM, either from command line argument or from actual timing
+        bpm = args.bpm
+        if not bpm:
+            end_time = time.time()
+            delta = end_time - start_time
+            beats = total_ticks / TICKS_PER_BEAT
+            bpm = int(round(beats * 60 / delta))
+        print("BPM: %d" % bpm)
+
+        # Write tempo and time signature to tempo map track
+        tempo_map_track.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(bpm)))
+        tempo_map_track.append(mido.MetaMessage('time_signature', numerator=4, denominator=4))
 
         mid.save(args.output)
 
