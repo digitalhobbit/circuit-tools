@@ -64,8 +64,8 @@ def main():
                         help="MIDI Input")
     parser.add_argument('-o', '--output', action='store', default=OUTPUT_FILE,
                         help="Output filename")
-    parser.add_argument('-b', '--bpm', type=int, action='store', help="BPM")
-    parser.add_argument('--bars', type=int, action='store', default=MAX_BARS,
+    parser.add_argument('-t', '--tempo', type=int, action='store', help="Tempo in BPM")
+    parser.add_argument('-b', '--bars', type=int, action='store', default=MAX_BARS,
                         help="Max # bars (0 = until Stop)")
     args = parser.parse_args()
 
@@ -133,7 +133,7 @@ def main():
                             track.append(msg)
 
         # Figure out BPM, either from command line argument or from actual timing
-        bpm = args.bpm
+        bpm = args.tempo
         if not bpm:
             end_time = time.time()
             delta = end_time - start_time
