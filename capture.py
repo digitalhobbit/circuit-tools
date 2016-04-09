@@ -28,9 +28,7 @@ OUTPUT_FILE = './output/capture.mid'
 
 SONG_NAME = "Circuit Import"
 
-# TODO: Make BPM configurable or infer from input
 BPM = 120
-
 TICKS_PER_BEAT = 24  # That's what Circuit uses
 
 MAX_BARS = 8  # TODO: Make this configurable
@@ -69,6 +67,8 @@ def main():
                         help="MIDI Input")
     parser.add_argument('-o', '--output', action='store', default=OUTPUT_FILE,
                         help="Output filename")
+    parser.add_argument('-b', '--bpm', type=int, action='store', default=BPM,
+                        help="BPM")
     args = parser.parse_args()
 
     output_dir = os.path.dirname(args.output)
@@ -85,7 +85,7 @@ def main():
             mid.add_track(name="Drums")]
 
         # Write tempo to tempo map track
-        tempo = mido.bpm2tempo(BPM)
+        tempo = mido.bpm2tempo(args.bpm)
         tempo_map_track.append(mido.MetaMessage('set_tempo', tempo=tempo))
         tempo_map_track.append(mido.MetaMessage('time_signature', numerator=4, denominator=4))
 
