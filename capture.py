@@ -11,10 +11,9 @@ This can be played as-is in midi players and imported into most DAW software
 for further editing.
 
 TODO:
-- Drum note presets, e.g. Bitwig Drum Machine, Tremor, Battery, Logic Drum Kit, etc.
 - Optionally output multiple MIDI files to cover all drum variations (e.g. perhaps
   allow multiple format params, default = general midi)
-- Add command line parameters for sounds
+- Add command line parameters for synth sounds
 """
 
 import argparse
@@ -40,19 +39,36 @@ CHANNEL_TO_INDEX = {
     CHANNEL_DRUMS: 2
 }
 
-# See here for other options: https://en.wikipedia.org/wiki/General_MIDI#Program_change_events
 PROGRAM_SYNTH1 = 39  # Synth Bass 1
 PROGRAM_SYNTH2 = 1   # Acoustic Grand Piano
 
-# For some reason, Circuit uses drums 60-65, which mainly correspond to bongos and congas.
-# We'll replace these with notes that correspond to the default Circuit drum sounds of
-# kick, snare, open hi-hat, closed hi-hat respectively.
+# Circuit uses drums 60, 62, 64, 65 (C5, D5, E5, F5), which map neither to meaningful General MIDI
+# sounds, nor to typical native DAW or VST drum instruments. We will therefore translate them to
+# meaningful notes according to the chosen scheme, in order to work well with your setup.
+# mainly correspond to bongos and congas.
+# Consistent with the default Circuit drum sounds, each scheme maps to notes that typically
+# represent bass drum, snare drum, closed hi-hat, and open hi-hat respectively. Of course,
+# the exact sounds may vary, depending on your drum kit.
 # See here for other options: https://en.wikipedia.org/wiki/General_MIDI#Percussion
 DRUM_REPLACEMENTS = {
-    60: 36,  # Bass Drum 1
-    62: 38,  # Snare Drum 1
-    64: 42,  # Closed Hi-hat (44 would be Pedal Hi-Hat)
-    65: 46,  # Open Hi-hat
+    # The scheme below uses standard General MIDI drum sounds. Resulting MIDI files should play
+    # fine in any MIDI player, as well as DAW-native or VST drum instruments that use these
+    # mappings, such as Logic Pro (both Drum Kit and Ultrasound) or Native Instruments Battery.
+    'gm': {
+        60: 36,  # Bass Drum 1
+        62: 38,  # Snare Drum 1
+        64: 42,  # Closed Hi-hat (44 would be Pedal Hi-Hat)
+        65: 46,  # Open Hi-hat
+    },
+    # This scheme uses semitones from C1 (i.e. C1, C#1, D1, D#1). Many drum instruments (such as
+    # FXpansion Tremor or Bitwig's built-in Drum Machine) map these to kick, snare, closed hi-hat,
+    # and open hi-hat respectively.
+    'c1up': {
+        60: 36,  # C1
+        62: 37,  # C#1
+        64: 38,  # D1
+        65: 39,  # D#1
+    }
 }
 
 def main():
@@ -67,6 +83,8 @@ def main():
     parser.add_argument('-t', '--tempo', type=int, action='store', help="Tempo in BPM")
     parser.add_argument('-b', '--bars', type=int, action='store', default=MAX_BARS,
                         help="Max # bars (0 = until Stop)")
+    parser.add_argument('-d', '--drums', action='store', choices=['gm', 'c1up'], default='gm',
+                        help="Drum notes to generate. gm = General MIDI, c1up = semitones from C1")
     args = parser.parse_args()
 
     output_dir = os.path.dirname(args.output)
@@ -127,7 +145,7 @@ def main():
                             clocks[index] = 0
 
                             if msg.channel == CHANNEL_DRUMS:
-                                msg.note = DRUM_REPLACEMENTS[msg.note]
+                                msg.note = DRUM_REPLACEMENTS[args.drums][msg.note]
 
                             print("Appending message: %s" % msg)
                             track.append(msg)
