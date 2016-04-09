@@ -15,7 +15,6 @@ TODO:
 - Optionally output multiple MIDI files to cover all drum variations (e.g. perhaps
   allow multiple format params, default = general midi)
 - Add command line parameters for sounds
-- Make max patterns configurable and optional
 """
 
 import argparse
@@ -29,8 +28,7 @@ OUTPUT_FILE = './output/capture.mid'
 SONG_NAME = "Circuit Import"
 
 TICKS_PER_BEAT = 24  # That's what Circuit uses
-
-MAX_BARS = 8  # TODO: Make this configurable
+MAX_BARS = 8
 
 CHANNEL_SYNTH1 = 0
 CHANNEL_SYNTH2 = 1
@@ -67,6 +65,8 @@ def main():
     parser.add_argument('-o', '--output', action='store', default=OUTPUT_FILE,
                         help="Output filename")
     parser.add_argument('-b', '--bpm', type=int, action='store', help="BPM")
+    parser.add_argument('--bars', type=int, action='store', default=MAX_BARS,
+                        help="Max # bars (0 = until Stop)")
     args = parser.parse_args()
 
     output_dir = os.path.dirname(args.output)
@@ -109,7 +109,7 @@ def main():
                         total_ticks += 1
                         if args.verbose:
                             print("Ticks: %d" % total_ticks)
-                        if total_ticks > TICKS_PER_BEAT * 4 * MAX_BARS:
+                        if args.bars > 0 and total_ticks > TICKS_PER_BEAT * 4 * args.bars:
                             if final_tick:
                                 # We've already processed the final tick => stop
                                 break
