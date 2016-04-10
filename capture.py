@@ -71,6 +71,7 @@ DRUM_REPLACEMENTS = {
     # This scheme uses semitones from C1 (i.e. C1, C#1, D1, D#1). Many drum instruments (such as
     # FXpansion Tremor or Bitwig's built-in Drum Machine) map these to kick, snare, closed hi-hat,
     # and open hi-hat respectively.
+    # Note that files with this drum scheme won't play correctly in regular MIDI players. 
     'c1up': {
         60: 36,  # C1
         62: 37,  # C#1
