@@ -185,20 +185,28 @@ class CircuitCapture:
             elif msg.type in ['note_on', 'note_off']:
                 # During final tick, only accept note_off messages
                 if msg.type == 'note_off' or not self.final_tick:
-                    index = CHANNEL_TO_INDEX[msg.channel]
-                    track = self.tracks[index]
-
-                    # Set message time to current clock count, then reset this track's clock
-                    msg.time = self.clocks[index]
-                    self.clocks[index] = 0
-
-                    if msg.channel == CHANNEL_DRUMS:
-                        msg.note = DRUM_REPLACEMENTS[self.drums][msg.note]
-
-                    print("Appending message: %s" % msg)
-                    track.append(msg)
+                    self.replace_drums(msg)
+                    self.update_time(msg)
+                    self.append_to_track(msg)
         return True
 
+    # Replace drums based on chosen scheme, if the message is on the drum channel
+    def replace_drums(self, msg):
+        if msg.channel == CHANNEL_DRUMS:
+            msg.note = DRUM_REPLACEMENTS[self.drums][msg.note]
+
+    # Set message time to current clock count, then reset this track's clock
+    def update_time(self, msg):
+        msg.time = self.clocks[self._index(msg)]
+        self.clocks[self._index(msg)] = 0
+
+    def append_to_track(self, msg):
+        print("Appending message: %s" % msg)
+        track = self.tracks[self._index(msg)]
+        track.append(msg)
+
+    def _index(self, msg):
+        return CHANNEL_TO_INDEX[msg.channel]
 
 #
 # === Main ===
