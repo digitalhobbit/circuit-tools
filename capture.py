@@ -45,7 +45,6 @@ PROGRAM_SYNTH2 = 1   # Acoustic Grand Piano
 # Circuit uses drums 60, 62, 64, 65 (C5, D5, E5, F5), which map neither to meaningful General MIDI
 # sounds, nor to typical native DAW or VST drum instruments. We will therefore translate them to
 # meaningful notes according to the chosen scheme, in order to work well with your setup.
-# mainly correspond to bongos and congas.
 # Consistent with the default Circuit drum sounds, each scheme maps to notes that typically
 # represent bass drum, snare drum, closed hi-hat, and open hi-hat respectively. Of course,
 # the exact sounds may vary, depending on your drum kit.
@@ -53,11 +52,20 @@ PROGRAM_SYNTH2 = 1   # Acoustic Grand Piano
 DRUM_REPLACEMENTS = {
     # The scheme below uses standard General MIDI drum sounds. Resulting MIDI files should play
     # fine in any MIDI player, as well as DAW-native or VST drum instruments that use these
-    # mappings, such as Logic Pro (both Drum Kit and Ultrasound) or Native Instruments Battery.
+    # mappings, such as Logic Pro (both Drum Kit and Ultrasound) or Rob Papen Punch.
     'gm': {
         60: 36,  # Bass Drum 1
         62: 38,  # Snare Drum 1
-        64: 42,  # Closed Hi-hat (44 would be Pedal Hi-Hat)
+        64: 42,  # Closed Hi-hat
+        65: 46,  # Open Hi-hat
+    },
+    # Identical to gm, except for Pedal Hi-Hat instead of Closed Hi-Hat. Intended for use with
+    # Native Instruments Battery, which mostly matches General MIDI notes, except for placing the
+    # Open Hi-Hat sound on the Pedal Hi-Hat note.
+    'gm2': {
+        60: 36,  # Bass Drum 1
+        62: 38,  # Snare Drum 1
+        64: 44,  # Pedal Hi-Hat
         65: 46,  # Open Hi-hat
     },
     # This scheme uses semitones from C1 (i.e. C1, C#1, D1, D#1). Many drum instruments (such as
@@ -83,8 +91,8 @@ def main():
     parser.add_argument('-t', '--tempo', type=int, action='store', help="Tempo in BPM")
     parser.add_argument('-b', '--bars', type=int, action='store', default=MAX_BARS,
                         help="Max # bars (0 = until Stop)")
-    parser.add_argument('-d', '--drums', action='store', choices=['gm', 'c1up'], default='gm',
-                        help="Drum notes to generate. gm = General MIDI, c1up = semitones from C1")
+    parser.add_argument('-d', '--drums', action='store', choices=['gm', 'gm2', 'c1up'], default='gm',
+                        help="Drum notes to generate. gm = General MIDI, gm2 = General MIDI NI Battery optimized, c1up = semitones from C1")
     args = parser.parse_args()
 
     output_dir = os.path.dirname(args.output)
