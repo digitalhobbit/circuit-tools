@@ -71,7 +71,7 @@ DRUM_REPLACEMENTS = {
     # This scheme uses semitones from C1 (i.e. C1, C#1, D1, D#1). Many drum instruments (such as
     # FXpansion Tremor or Bitwig's built-in Drum Machine) map these to kick, snare, closed hi-hat,
     # and open hi-hat respectively.
-    # Note that files with this drum scheme won't play correctly in regular MIDI players. 
+    # Note that files with this drum scheme won't play correctly in regular MIDI players.
     'c1up': {
         60: 36,  # C1
         62: 37,  # C#1
@@ -79,6 +79,7 @@ DRUM_REPLACEMENTS = {
         65: 39,  # D#1
     }
 }
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -96,85 +97,108 @@ def main():
                         help="Drum notes to generate. gm = General MIDI, gm2 = General MIDI NI Battery optimized, c1up = semitones from C1")
     args = parser.parse_args()
 
-    output_dir = os.path.dirname(args.output)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    circuit_capture = CircuitCapture(args.verbose, args.input, args.output, args.tempo,
+                                     args.bars, args.drums)
+    circuit_capture.capture()
 
-    mido.set_backend('mido.backends.rtmidi')
 
-    with mido.MidiFile(type=1, ticks_per_beat=TICKS_PER_BEAT) as mid:
-        # Create tracks
-        tempo_map_track = mid.add_track(name=SONG_NAME)
-        tracks = [mid.add_track(name="Synth 1"),
-            mid.add_track(name="Synth 2"),
-            mid.add_track(name="Drums")]
+class CircuitCapture:
+    def __init__(self, verbose, input, output, tempo_bpm, bars, drums):
+        self.verbose = verbose
+        self.input = input
+        self.output = output
+        self.tempo_bpm = tempo_bpm
+        self.bars = bars
+        self.drums = drums
 
-        # Set synth instruments
-        tracks[CHANNEL_SYNTH1].append(mido.Message('program_change', program=PROGRAM_SYNTH1))
-        tracks[CHANNEL_SYNTH2].append(mido.Message('program_change', program=PROGRAM_SYNTH2))
+        self.capturing = False
+        self.final_tick = False
+        # Start clocks at -1 to account for Circuit's leading clock message after start
+        self.clocks = [-1, -1, -1]
+        self.total_ticks = 0
 
-        with mido.open_input(args.input) as port:
-            capture = False
-            final_tick = False
-            # Start clocks at -1 to account for Circuit's leading clock message after start
-            clocks = [-1, -1, -1]
-            total_ticks = 0
-            print("Push 'Play' to start capture.")
 
-            for msg in port:
-                if msg.type == 'start':
-                    print("Starting capture.")
-                    capture = True
-                    start_time = time.time()
-                elif msg.type == 'stop':
-                    print("Stopping capture.")
-                    capture = False
-                    break
-                elif capture:
-                    if msg.type == 'clock':
-                        clocks = [c + 1 for c in clocks]
-                        total_ticks += 1
-                        if args.verbose:
-                            print("Ticks: %d" % total_ticks)
-                        if args.bars > 0 and total_ticks > TICKS_PER_BEAT * 4 * args.bars:
-                            if final_tick:
-                                # We've already processed the final tick => stop
-                                break
-                            else:
-                                final_tick = True
-                                print("End of song. Stopping capture.")
-                    elif msg.type in ['note_on', 'note_off']:
-                        # During final tick, only accept note_off messages
-                        if msg.type == 'note_off' or not final_tick:
-                            index = CHANNEL_TO_INDEX[msg.channel]
-                            track = tracks[index]
+    def capture(self):
+        output_dir = os.path.dirname(self.output)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
-                            # Set message time to current clock count, then reset this track's clock
-                            msg.time = clocks[index]
-                            clocks[index] = 0
+        mido.set_backend('mido.backends.rtmidi')
 
-                            if msg.channel == CHANNEL_DRUMS:
-                                msg.note = DRUM_REPLACEMENTS[args.drums][msg.note]
+        with mido.MidiFile(type=1, ticks_per_beat=TICKS_PER_BEAT) as mid:
+            # Create tracks
+            self.tempo_map_track = mid.add_track(name=SONG_NAME)
+            self.tracks = [mid.add_track(name="Synth 1"),
+                mid.add_track(name="Synth 2"),
+                mid.add_track(name="Drums")]
 
-                            print("Appending message: %s" % msg)
-                            track.append(msg)
+            # Set synth instruments
+            self.tracks[CHANNEL_SYNTH1].append(mido.Message('program_change', program=PROGRAM_SYNTH1))
+            self.tracks[CHANNEL_SYNTH2].append(mido.Message('program_change', program=PROGRAM_SYNTH2))
 
-        # Figure out BPM, either from command line argument or from actual timing
-        bpm = args.tempo
-        if not bpm:
-            end_time = time.time()
-            delta = end_time - start_time
-            beats = total_ticks / TICKS_PER_BEAT
-            bpm = int(round(beats * 60 / delta))
-        print("BPM: %d" % bpm)
+            with mido.open_input(self.input) as port:
+                print("Push 'Play' to start capture.")
+                for msg in port:
+                    if not self.process_message(msg):
+                        self.capturing = False
+                        break
 
-        # Write tempo and time signature to tempo map track
-        tempo_map_track.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(bpm)))
-        tempo_map_track.append(mido.MetaMessage('time_signature', numerator=4, denominator=4))
+            # Figure out BPM, either from command line argument or from actual timing
+            bpm = self.tempo_bpm
+            if not bpm:
+                end_time = time.time()
+                delta = end_time - self.start_time
+                beats = self.total_ticks / TICKS_PER_BEAT
+                bpm = int(round(beats * 60 / delta))
+            print("BPM: %d" % bpm)
 
-        mid.save(args.output)
+            # Write tempo and time signature to tempo map track
+            self.tempo_map_track.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(bpm)))
+            self.tempo_map_track.append(mido.MetaMessage('time_signature', numerator=4, denominator=4))
 
-    print("All done!")
+            mid.save(self.output)
+            print("All done!")
+
+
+    # Returns false when capturing should be stopped.
+    def process_message(self, msg):
+        if msg.type == 'start':
+            print("Starting capture.")
+            self.capturing = True
+            self.start_time = time.time()
+        elif msg.type == 'stop':
+            print("Stopping capture.")
+            return False
+        elif self.capturing:
+            if msg.type == 'clock':
+                self.clocks = [c + 1 for c in self.clocks]
+                self.total_ticks += 1
+                if self.verbose:
+                    print("Ticks: %d" % self.total_ticks)
+                if self.bars > 0 and self.total_ticks > TICKS_PER_BEAT * 4 * self.bars:
+                    if self.final_tick:
+                        # We've already processed the final tick => stop capture
+                        return False
+                    else:
+                        self.final_tick = True
+                        print("End of song. Stopping capture.")
+            elif msg.type in ['note_on', 'note_off']:
+                # During final tick, only accept note_off messages
+                if msg.type == 'note_off' or not self.final_tick:
+                    index = CHANNEL_TO_INDEX[msg.channel]
+                    track = self.tracks[index]
+
+                    # Set message time to current clock count, then reset this track's clock
+                    msg.time = self.clocks[index]
+                    self.clocks[index] = 0
+
+                    if msg.channel == CHANNEL_DRUMS:
+                        msg.note = DRUM_REPLACEMENTS[self.drums][msg.note]
+
+                    print("Appending message: %s" % msg)
+                    track.append(msg)
+        return True
+
 
 #
 # === Main ===
