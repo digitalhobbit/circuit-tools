@@ -111,14 +111,14 @@ class CircuitCapture:
         self.bars = bars
         self.drums = drums
 
+
+    def capture(self):
         self.capturing = False
         self.final_tick = False
         # Start clocks at -1 to account for Circuit's leading clock message after start
         self.clocks = [-1, -1, -1]
         self.total_ticks = 0
 
-
-    def capture(self):
         output_dir = os.path.dirname(self.output)
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -140,24 +140,13 @@ class CircuitCapture:
                 print("Push 'Play' to start capture.")
                 for msg in port:
                     if not self.process_message(msg):
-                        self.capturing = False
                         break
 
-            # Figure out BPM, either from command line argument or from actual timing
-            bpm = self.tempo_bpm
-            if not bpm:
-                end_time = time.time()
-                delta = end_time - self.start_time
-                beats = self.total_ticks / TICKS_PER_BEAT
-                bpm = int(round(beats * 60 / delta))
-            print("BPM: %d" % bpm)
-
-            # Write tempo and time signature to tempo map track
-            self.tempo_map_track.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(bpm)))
-            self.tempo_map_track.append(mido.MetaMessage('time_signature', numerator=4, denominator=4))
-
+            self.capturing = False
+            self.write_tempo_map()
             mid.save(self.output)
-            print("All done!")
+
+        print("All done!")
 
 
     # Returns false when capturing should be stopped.
@@ -204,6 +193,20 @@ class CircuitCapture:
         print("Appending message: %s" % msg)
         track = self.tracks[self._index(msg)]
         track.append(msg)
+
+    def write_tempo_map(self):
+        # Figure out BPM, either from command line argument or from actual timing
+        bpm = self.tempo_bpm
+        if not bpm:
+            end_time = time.time()
+            delta = end_time - self.start_time
+            beats = self.total_ticks / TICKS_PER_BEAT
+            bpm = int(round(beats * 60 / delta))
+        print("BPM: %d" % bpm)
+
+        # Write tempo and time signature to tempo map track
+        self.tempo_map_track.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(bpm)))
+        self.tempo_map_track.append(mido.MetaMessage('time_signature', numerator=4, denominator=4))
 
     def _index(self, msg):
         return CHANNEL_TO_INDEX[msg.channel]
