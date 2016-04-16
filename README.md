@@ -24,8 +24,8 @@ capture.py uses [Mido](https://github.com/olemb/mido), a platform independent Py
 
 1. Install mido and rtmidi (OSX):
 
-    brew install rtmidi
-    pip install python-rtmidi mido
+        brew install rtmidi
+        pip install python-rtmidi mido
 
 2. Download and unzip the [circuit-tools files](https://github.com/digitalhobbit/circuit-tools/archive/master.zip).
 
